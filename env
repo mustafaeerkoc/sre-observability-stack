@@ -1,0 +1,4 @@
+# Grafana admin credentials
+# Change these before deploying!
+GF_ADMIN_USER=admin
+GF_ADMIN_PASSWORD=changeme123

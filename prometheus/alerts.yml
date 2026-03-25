@@ -1,0 +1,66 @@
+groups:
+  - name: node-alerts
+    rules:
+
+      # ─── CPU ───────────────────────────────────────────────
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage has been above 80% for more than 2 minutes. Current value: {{ $value | printf \"%.1f\" }}%"
+
+      # ─── MEMORY ────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage has been above 85% for more than 2 minutes. Current value: {{ $value | printf \"%.1f\" }}%"
+
+      # ─── DISK ──────────────────────────────────────────────
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"})) * 100 > 85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Disk usage on {{ $labels.mountpoint }} has been above 85% for more than 5 minutes. Current value: {{ $value | printf \"%.1f\" }}%"
+
+      # ─── INSTANCE DOWN ─────────────────────────────────────
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} is down"
+          description: "{{ $labels.instance }} (job: {{ $labels.job }}) has been unreachable for more than 1 minute."
+
+  - name: blackbox-alerts
+    rules:
+
+      # ─── ENDPOINT PROBE FAILED ─────────────────────────────
+      - alert: EndpointDown
+        expr: probe_success == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Endpoint {{ $labels.instance }} is unreachable"
+          description: "Blackbox probe failed for {{ $labels.instance }} for more than 1 minute."
+
+      # ─── SLOW RESPONSE TIME ────────────────────────────────
+      - alert: SlowResponseTime
+        expr: probe_duration_seconds > 2
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response on {{ $labels.instance }}"
+          description: "Endpoint {{ $labels.instance }} is responding in {{ $value | printf \"%.2f\" }}s (threshold: 2s)."

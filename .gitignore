@@ -1,0 +1,16 @@
+# Environment variables — never commit secrets
+.env
+
+# Docker volumes (local data)
+prometheus_data/
+grafana_data/
+alertmanager_data/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
