@@ -1,0 +1,110 @@
+---
+- name: Deploy SRE observability stack
+  hosts: all
+  become: true
+
+  vars:
+    repo_url: "https://github.com/mustafaeerkoc/sre-observability-stack.git"
+    project_dir: "/opt/sre-observability-stack"
+    grafana_password: "{{ lookup('env', 'GF_ADMIN_PASSWORD') | default('changeme123') }}"
+
+  tasks:
+
+    # ─── System update ───────────────────────────────────────
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - git
+          - python3-pip
+        state: present
+
+    # ─── Docker ──────────────────────────────────────────────
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    # ─── Clone repo ──────────────────────────────────────────
+    - name: Clone observability stack repo
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ project_dir }}"
+        version: main
+        force: yes
+
+    # ─── Environment ─────────────────────────────────────────
+    - name: Create .env file
+      copy:
+        content: |
+          GF_ADMIN_USER=admin
+          GF_ADMIN_PASSWORD={{ grafana_password }}
+        dest: "{{ project_dir }}/.env"
+        mode: '0600'
+
+    # ─── Deploy stack ────────────────────────────────────────
+    - name: Deploy stack with Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ project_dir }}"
+        state: present
+        pull: always
+
+    # ─── Verify ──────────────────────────────────────────────
+    - name: Wait for Prometheus to be healthy
+      uri:
+        url: "http://localhost:9090/-/healthy"
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 10
+      delay: 10
+
+    - name: Wait for Grafana to be healthy
+      uri:
+        url: "http://localhost:3000/api/health"
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 10
+      delay: 10
+
+    - name: Print access info
+      debug:
+        msg:
+          - "Grafana  → http://{{ ansible_host }}:3000"
+          - "Prometheus → http://{{ ansible_host }}:9090"
+          - "Alertmanager → http://{{ ansible_host }}:9093"

@@ -14,3 +14,11 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/sre-key.pem
+terraform/ansible/inventory.yml
