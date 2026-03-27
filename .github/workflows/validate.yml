@@ -47,7 +47,11 @@ jobs:
         run: promtool check rules prometheus/alerts.yml
 
       - name: Check Prometheus config
-        run: promtool check config prometheus/prometheus.yml
+        run: |
+          sed 's|/etc/prometheus/alerts.yml|alerts.yml|g' prometheus/prometheus.yml > /tmp/prometheus-ci.yml
+          sed -i 's|/etc/prometheus/||g' /tmp/prometheus-ci.yml
+          cp prometheus/alerts.yml /tmp/alerts.yml
+          promtool check config /tmp/prometheus-ci.yml
 
       # ─── Alertmanager config ────────────────────────────────
       - name: Install amtool
