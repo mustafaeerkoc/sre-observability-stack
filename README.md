@@ -1,5 +1,7 @@
 # SRE Observability Stack
 
+![CI](https://github.com/<your-username>/sre-observability-stack/actions/workflows/validate.yml/badge.svg)
+
 A production-style monitoring stack built with Prometheus, Grafana, Alertmanager, Node Exporter, cAdvisor, and Blackbox Exporter. Designed as a hands-on SRE portfolio project demonstrating real-world observability practices.
 
 ## Overview
@@ -93,7 +95,7 @@ Alertmanager is configured with:
 ### Run
 
 ```bash
-git clone https://github.com/<your-username>/sre-observability-stack.git
+git clone https://github.com/mustafaeerkoc/sre-observability-stack.git
 cd sre-observability-stack
 
 # Copy and configure environment variables
