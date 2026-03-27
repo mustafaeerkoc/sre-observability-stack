@@ -1,0 +1,69 @@
+name: Validate configs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate stack configs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ─── Docker Compose syntax ──────────────────────────────
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
+
+      # ─── YAML lint — tüm config dosyaları ──────────────────
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Lint YAML files
+        run: |
+          yamllint -d "{extends: relaxed, rules: {line-length: {max: 200}}}" \
+            prometheus/prometheus.yml \
+            prometheus/alerts.yml \
+            alertmanager/alertmanager.yml \
+            blackbox/blackbox.yml \
+            loki/loki-config.yml \
+            promtail/promtail-config.yml \
+            grafana/provisioning/datasources/datasources.yml \
+            grafana/provisioning/dashboards/dashboards.yml
+
+      # ─── Prometheus alert kuralları ────────────────────────
+      - name: Install promtool
+        run: |
+          PROM_VERSION="2.51.0"
+          wget -q "https://github.com/prometheus/prometheus/releases/download/v${PROM_VERSION}/prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
+          tar -xzf "prometheus-${PROM_VERSION}.linux-amd64.tar.gz"
+          sudo mv "prometheus-${PROM_VERSION}.linux-amd64/promtool" /usr/local/bin/
+
+      - name: Check Prometheus alert rules
+        run: promtool check rules prometheus/alerts.yml
+
+      - name: Check Prometheus config
+        run: promtool check config prometheus/prometheus.yml
+
+      # ─── Alertmanager config ────────────────────────────────
+      - name: Install amtool
+        run: |
+          AM_VERSION="0.27.0"
+          wget -q "https://github.com/prometheus/alertmanager/releases/download/v${AM_VERSION}/alertmanager-${AM_VERSION}.linux-amd64.tar.gz"
+          tar -xzf "alertmanager-${AM_VERSION}.linux-amd64.tar.gz"
+          sudo mv "alertmanager-${AM_VERSION}.linux-amd64/amtool" /usr/local/bin/
+
+      - name: Check Alertmanager config
+        run: amtool check-config alertmanager/alertmanager.yml
+
+      # ─── Grafana dashboard JSON syntax ─────────────────────
+      - name: Validate Grafana dashboard JSON
+        run: |
+          for f in grafana/dashboards/*.json; do
+            echo "Checking $f..."
+            python3 -c "import json, sys; json.load(open('$f'))" && echo "OK: $f"
+          done
